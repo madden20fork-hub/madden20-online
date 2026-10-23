@@ -1,0 +1,6 @@
+teamBuild 0x476a9a0
+rosterLoad 0x2e94c40
+hubRegister 0x20e13f0
+hubEnsure 0x20e0b40
+mutPlayerIns 0x476ef80
+hudUpdate 0x3d93ec0

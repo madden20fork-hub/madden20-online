@@ -1,0 +1,4 @@
+setGuid 0x20e10a0
+setAgid 0x20e12e0
+setPassive 0x20e0e60
+hubRegister 0x20e13f0

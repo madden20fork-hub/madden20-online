@@ -1,0 +1,5 @@
+hudUpdate 0x3d93ec0
+abilGet 0x20e2fa0
+featFill 0x478f970
+teamBuild 0x476a9a0
+addPlayerCard 0x478f3b0

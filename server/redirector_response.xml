@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<serverinstanceinfo>
+  <address member="0">
+    <valu>
+      <hostname>{HOST_IP}</hostname>
+      <ip>{HOST_IP_U32}</ip>
+      <port>10041</port>
+    </valu>
+  </address>
+  <secure>0</secure>
+  <trialservicename></trialservicename>
+  <defaultdnsaddress>0</defaultdnsaddress>
+</serverinstanceinfo>

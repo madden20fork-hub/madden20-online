@@ -1,0 +1,12 @@
+{
+    "Log": {
+        "filter": "*:Warning Lib.Net:Error Lib.NetCtl:Error Lib.NpParty:Critical Lib.Http:Error Lib.Ajm:Error",
+        "sync": false
+    },
+    "GPU": {
+        "fsr_enabled": true
+    },
+    "General": {
+        "neo_mode": false
+    }
+}

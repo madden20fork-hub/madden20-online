@@ -1,0 +1,5 @@
+.echo ==== CRASH ====
+.lastevent
+r
+dd 0x807a0bb70 L2
+.echo ==== PAUSED ====

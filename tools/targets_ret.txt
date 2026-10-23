@@ -1,0 +1,5 @@
+teamBuild 0x476a9a0
+playerInsRet 0x476f778
+commitPlgaRet 0x476dac1
+commitPlayRet 0x476dae9
+queryExec 0x44d3d30

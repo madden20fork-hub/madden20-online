@@ -1,0 +1,4 @@
+hudUpdate 0x3d93ec0
+abilGet 0x20e2fa0
+playSetup 0x40d3940
+queryExec 0x44d3d30

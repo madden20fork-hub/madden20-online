@@ -1,0 +1,12 @@
+/build/
+/dist/
+__pycache__/
+*.pyc
+server/logs/
+server/certs/
+mutdata/raw/
+mutdata/art/
+mutdata/cards.json
+mutdata/card_ids.txt
+mutdata/*_state.json
+mutdata/current_game.json
