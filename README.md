@@ -8,7 +8,7 @@ Play Madden NFL 20 Ultimate Team again — Draft Champions, H2H Seasons vs CPU, 
 2. Pick your game folder → **Install**.
 3. Open **Madden 20 Online** from the desktop → **Download card data** (once) → **Play**.
 
-If Windows asks to allow network access, allow it (the server only runs on your PC).
+The exe isn't code-signed: if Windows says "Windows protected your PC", click **More info → Run anyway**. If it asks to allow network access, allow it (the server only runs on your PC).
 
 AI assistants: read [AI_README.md](AI_README.md).
 

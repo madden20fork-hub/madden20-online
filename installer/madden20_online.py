@@ -2,11 +2,12 @@
 
 First run (no settings.json next to the exe): setup window. It asks for an already-extracted Madden NFL 20 PS4 game
 folder (CUSA13265, version 01.00), installs the patched shadPS4 build, the local Blaze/HTTP servers and the data
-tables into an install folder, generates a TLS certificate, downloads the MUT 20 card catalog + card art from
-Muthead, and creates a desktop shortcut. The game files themselves are never modified.
+tables into an install folder, generates a TLS certificate and creates a desktop shortcut. The game files
+themselves are never modified.
 
-Installed (settings.json next to the exe): launcher window. "Play" starts both local servers, runs the game, and
-stops the servers when the game exits.
+Installed (settings.json next to the exe): launcher window. "Download card data" (once) scrapes the MUT 20 card
+catalog + card art from Muthead; "Play" starts both local servers, runs the game, and stops the servers when the
+game exits.
 
 Internal modes (the exe re-invokes itself):
   --serve http|blaze     run server/http_server.py or server/blaze_server.py with this exe's bundled Python
@@ -84,6 +85,41 @@ def self_cmd(*args):
     return [sys.executable, *args] if frozen() else [sys.executable, str(Path(__file__).resolve()), *args]
 
 
+def ansi_safe(path):
+    """shadPS4 takes paths through narrow (ANSI code page) APIs - argv for -g, getenv for the mod root, fopen for the
+    flags. A character outside this PC's code page cannot reach it intact (mbcs strict = no best-fit guessing)."""
+    try:
+        str(path).encode("mbcs", errors="strict")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def default_install_dir():
+    home = Path(os.path.expandvars(r"%USERPROFILE%"))
+    if ansi_safe(home):
+        return home / "Madden20Online"
+    return Path(os.environ.get("SystemDrive", "C:") + "\\") / "Madden20Online"
+
+
+def check_install_dir(path):
+    """-> error message, or None if the folder can be created and written and the emulator can take its path."""
+    p = Path(path)
+    if not str(path).strip() or not p.is_absolute():
+        return "Pick a full install folder path (for example C:\\Madden20Online)."
+    if not ansi_safe(p):
+        return (f"The install folder path has characters this PC's language setting can't pass to the emulator:\n{p}\n"
+                "Pick a folder whose path uses only plain letters, e.g. C:\\Madden20Online.")
+    try:
+        p.mkdir(parents=True, exist_ok=True)
+        probe = p / ".write_test"
+        probe.write_text("ok")
+        probe.unlink()
+    except OSError as e:
+        return f"Can't write to {p} ({e.strerror}). Pick a folder you own, e.g. C:\\Madden20Online (not Program Files)."
+    return None
+
+
 def load_settings(d):
     p = Path(d) / "settings.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
@@ -139,6 +175,9 @@ def check_game(folder):
             break
     else:
         return False, "No eboot.bin + sce_sys\\param.sfo found. Pick the extracted CUSA13265 game folder.", None
+    if not ansi_safe(f):
+        return False, (f"The game folder path has characters this PC's language setting can't pass to the emulator:\n"
+                       f"{f}\nMove or rename it so the path uses only plain letters, e.g. E:\\Games\\CUSA13265."), None
     sfo = read_sfo(f / "sce_sys" / "param.sfo")
     if sfo.get("TITLE_ID") != TITLE_ID:
         return False, f"This is {sfo.get('TITLE_ID')} ({sfo.get('TITLE')}), not Madden NFL 20 ({TITLE_ID}).", None
@@ -162,17 +201,22 @@ def write_emulator_config(install, fullscreen):
 
 
 def make_shortcut(target, name):
-    desk = Path(os.path.expandvars(r"%USERPROFILE%\Desktop"))
-    lnk = desk / f"{name}.lnk"
-    ps = (f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
-          f"$s.TargetPath='{target}';$s.WorkingDirectory='{target.parent}';$s.IconLocation='{target},0';$s.Save()")
-    subprocess.run(["powershell", "-NoProfile", "-Command", ps], creationflags=NO_WINDOW, check=False)
+    """Desktop shortcut. The Desktop comes from the shell (it may be redirected to OneDrive); paths are passed as
+    PowerShell single-quoted strings, where a ' is written ''."""
+    def q(s):
+        return "'" + str(s).replace("'", "''") + "'"
+    ps = (f"$d=[Environment]::GetFolderPath('Desktop');"
+          f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d {q(name + '.lnk')}));"
+          f"$s.TargetPath={q(target)};$s.WorkingDirectory={q(target.parent)};$s.IconLocation={q(f'{target},0')};"
+          f"$s.Save()")
+    return subprocess.run(["powershell", "-NoProfile", "-Command", ps], creationflags=NO_WINDOW,
+                          check=False).returncode == 0
 
 
 def run_logged(cmd, log, cwd=None, env=None):
     env = dict(env or os.environ, MADDEN_ROOT=str(Path(cwd).resolve()) if cwd else os.environ.get("MADDEN_ROOT", ""))
     p = subprocess.Popen(cmd, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                         creationflags=NO_WINDOW, bufsize=1)
+                         encoding="utf-8", errors="replace", creationflags=NO_WINDOW, bufsize=1)
     for line in p.stdout:
         log(line.rstrip())
     return p.wait()
@@ -197,7 +241,9 @@ def download_cards(install, with_art, log):
 def install(install_dir, game_eboot, fullscreen, with_art, shortcut, log, done):
     try:
         install = Path(install_dir)
-        install.mkdir(parents=True, exist_ok=True)
+        err = check_install_dir(install)
+        if err:
+            raise RuntimeError(err)
         log(f"Installing to {install}")
         pl = payload_dir()
         for sub in ("core", "server", "tools", "mutdata", "modroot", "dump", "docs"):
@@ -213,8 +259,8 @@ def install(install_dir, game_eboot, fullscreen, with_art, shortcut, log, done):
         if run_logged(self_cmd("--tool", "make_cert"), log, cwd=install) != 0 or                 not (install / "server" / "certs" / "ea.crt").exists():
             raise RuntimeError("certificate generation failed")
         if shortcut and frozen():
-            make_shortcut(install / EXE_NAME, APP)
-            log("Desktop shortcut created.")
+            log("Desktop shortcut created." if make_shortcut(install / EXE_NAME, APP) else
+                f"Could not create the desktop shortcut - start {install / EXE_NAME} directly.")
         log("Installed. Open the launcher and click 'Download card data' once before playing Ultimate Team.")
         done(True, install)
     except Exception as e:  # noqa: BLE001
@@ -237,6 +283,14 @@ def port_free(port, host="0.0.0.0"):
 def play(install, log):
     install = Path(install)
     s = load_settings(install)
+    eboot = Path(s["game_eboot"])
+    if not eboot.exists():
+        log(f"Game not found at {eboot}. Connect that drive, or click 'Game folder...' and pick the game again.")
+        return
+    if not ansi_safe(install):
+        log(f"The install folder path ({install}) can't be passed to the emulator on this PC. Reinstall to a plain "
+            "path such as C:\\Madden20Online.")
+        return
     if not (install / "mutdata" / "cards.json").exists():
         log("Card data missing - click 'Download card data' first.")
         return
@@ -301,7 +355,7 @@ class Window(tk.Tk):
                           "The game files are not modified.", wraplength=660).grid(row=1, column=0, columnspan=3,
                                                                                      sticky="w", pady=(4, 10))
         self.game = tk.StringVar()
-        self.dest = tk.StringVar(value=str(Path(os.path.expandvars(r"%USERPROFILE%")) / "Madden20Online"))
+        self.dest = tk.StringVar(value=str(default_install_dir()))
         self.full = tk.BooleanVar(value=True)
         self.art = tk.BooleanVar(value=True)
         self.lnk = tk.BooleanVar(value=True)
@@ -338,6 +392,11 @@ class Window(tk.Tk):
         if not ok:
             messagebox.showerror(APP, msg)
             return
+        err = check_install_dir(self.dest.get())
+        if err:
+            self.log(err)
+            messagebox.showerror(APP, err)
+            return
         self.go.configure(state="disabled")
 
         def done(success, where):
@@ -366,11 +425,27 @@ class Window(tk.Tk):
         self.full = tk.BooleanVar(value=self.installed.get("fullscreen", True))
         ttk.Checkbutton(bar, text="Fullscreen", variable=self.full, command=self.save_full).pack(side="left", padx=6)
         ttk.Button(bar, text="Open install folder", command=lambda: os.startfile(exe_dir())).pack(side="right")
+        ttk.Button(bar, text="Game folder...", command=self.change_game).pack(side="right", padx=6)
         self.text.pack(in_=f, fill="both", expand=True)
         if not (exe_dir() / "mutdata" / "cards.json").exists():
             self.log("Card data not downloaded yet - click 'Download card data' (needed once).")
         else:
             self.log("Ready. Click Play.")
+
+    def change_game(self):
+        """Re-point the install at the game (moved folder, new drive letter)."""
+        d = filedialog.askdirectory(title="Extracted Madden NFL 20 folder (contains eboot.bin)")
+        if not d:
+            return
+        ok, msg, eboot = check_game(d)
+        self.log(msg)
+        if not ok:
+            messagebox.showerror(APP, msg)
+            return
+        s = load_settings(exe_dir())
+        s["game_eboot"] = str(eboot)
+        save_settings(exe_dir(), s)
+        self.log(f"Game folder set to {eboot.parent}.")
 
     def save_full(self):
         s = load_settings(exe_dir())
@@ -400,6 +475,9 @@ def main():
         f = open(exe_dir() / "launcher.log", "a", encoding="utf-8", buffering=1)
         sys.stdout = sys.stdout or f
         sys.stderr = sys.stderr or f
+    for stream in (sys.stdout, sys.stderr):            # logs/pipes are UTF-8 whatever the PC's code page is
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     if len(sys.argv) >= 3 and sys.argv[1] == "--serve":
         serve(sys.argv[2])
         return

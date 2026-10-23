@@ -11,7 +11,7 @@
         "sdl_padSpk_output_device": "Default Device"
     },
     "Debug": {
-        "config_version": "d5a4ae37c472b54ea8110804af8fd0bc1f5ad0bf",
+        "config_version": "",
         "debug_dump": false,
         "shader_collect": false
     },
@@ -43,7 +43,7 @@
         "console_language": 1,
         "dev_kit_mode": false,
         "discord_rpc_enabled": false,
-        "enable_upnp": true,
+        "enable_upnp": false,
         "extra_dmem_in_mbytes": 0,
         "extra_fmem_in_mbytes": 0,
         "font_dir": "",
@@ -91,7 +91,7 @@
         "type": "wincolor"
     },
     "Vulkan": {
-        "gpu_id": 0,
+        "gpu_id": -1,
         "pipeline_cache_archived": false,
         "pipeline_cache_enabled": false,
         "renderdoc_enabled": false,

@@ -37,8 +37,9 @@ Madden20Online\
 ## Hard facts (measured — don't re-derive)
 - Game: **CUSA13265, APP_VER 01.00**, eboot.bin md5 `c973befec7acd462d31d084743d1b513`. Shader hashes and eboot
   addresses in the core + tools assume this build.
-- The redirector must hand out the **LAN IP** (DirtySDK binds to it); 127.0.0.1 fails. Windows will show a firewall
-  prompt for the launcher — allow it.
+- The redirector must hand out the **same IP the core's NetCtl reports** (DirtySDK binds to it before connecting); a
+  LAN-IP-bound client cannot reach 127.0.0.1. Windows shows a firewall prompt for the launcher; local play worked
+  with the prompt left unanswered.
 - Servers run with `MADDEN_PLATFORM=ps4` (PS4 client identity). `MADDEN_VERBOSE=0` (launcher default) = no per-frame
   logs; set `1` to log every Blaze frame decoded + raw captures (huge).
 - Card data is NOT shipped (it is EA content): `tools/muthead_scrape.py` → `mutdata/raw/` cache →
@@ -48,6 +49,14 @@ Madden20Online\
   game's own database in memory; regenerating them needs the RE tools in `tools/` and a running game.
 - Gameplay is capped at 30 FPS by the game; menus 60. PS4 Pro mode (`neo_mode`) is OFF: it renders but a 1440p
   render-scale experiment corrupted gameplay frames — see RESEARCH.md before enabling.
+- Portability (any drive, any user): every runtime path is relative to the install folder; the game is referenced by
+  absolute `settings.json: game_eboot` (launcher **Game folder...** re-points it). shadPS4 takes paths through narrow
+  ANSI-code-page APIs (`-g` argv, `getenv("NBA2K14_MOD_ROOT")`, `fopen` of flags), so setup/launcher refuse game or
+  install paths with characters outside the PC's code page instead of black-screening. `core\` carries app-local
+  VC++ runtime DLLs (msvcp140, msvcp140_atomic_wait, vcruntime140, vcruntime140_1) — no redist install needed.
+  Emulator config: `gpu_id -1` (prefer the discrete GPU), UPnP off.
+- Server IP = source address of the route toward 1.1.1.1 (UDP connect, no traffic), 127.0.0.1 if no route — the
+  same rule the core's NetCtl uses, so the address the game binds and the one the redirector hands out match.
 - A quit counts as a loss in H2H/Draft (the client sends no end-of-game on quit — same as EA's server).
 
 ## Core flags (`modroot/flags/`, all required)

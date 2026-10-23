@@ -3,7 +3,6 @@
 
 MADDEN_PLATFORM=ps4 restores the PS4 identity (old runs)."""
 import os
-import socket
 
 PLATFORM = os.environ.get("MADDEN_PLATFORM", "pc")
 
@@ -23,15 +22,6 @@ else:
     CLIENT_PLATFORM = None          # taken from the client's PreAuth CINF.CPFT
     EXTERNAL_ID = 1000000000001     # PC: external id = Nucleus pid
     PERSONA_NAME = os.environ.get("MADDEN_PERSONA", "Player")
-
-
-def lan_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("10.255.255.255", 1))
-        return s.getsockname()[0]
-    finally:
-        s.close()
 
 
 # Plain-HTTP side server (http_server.py --plain): DP tuning data, telemetry sink, card art (netres).

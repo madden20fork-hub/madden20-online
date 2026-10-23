@@ -349,7 +349,10 @@ u32 NetUtilInternal::GetNatType() const {
 bool NetUtilInternal::RetrieveIp() {
     std::scoped_lock lock{m_mutex};
 
-    auto sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    // UDP connect only picks the route's source address: no packet is sent, so this works without internet access
+    // and never blocks on a TCP handshake. The Madden 20 local server (http_server.lan_ip) picks its address the
+    // same way, so the IP the game binds to and the one the redirector hands out always match.
+    auto sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd == -1) {
         return false;
     }

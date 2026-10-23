@@ -25,11 +25,15 @@ COUNTER = itertools.count(1)
 
 
 def lan_ip():
-    """The address shadPS4's netctl reports (DirtySDK binds its sockets to it before connecting)."""
+    """The address shadPS4's netctl reports (DirtySDK binds its sockets to it before connecting), chosen the same way
+    as the core's NetUtilInternal::RetrieveIp: source address of the route toward 1.1.1.1 (UDP connect, no packet
+    sent), 127.0.0.1 when there is no route."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(("10.255.255.255", 1))
+        s.connect(("1.1.1.1", 80))
         return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
     finally:
         s.close()
 
